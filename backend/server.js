@@ -12,15 +12,13 @@ const port = process.env.PORT || 5000
 connectDB()
 
 
-
 app.use(express.json())
-app.use(cookieParser())
 app.use(express.urlencoded({extended: true}))
 app.use(cors({
-    origin: process.env.FRONTEND_URL, 
-    methods: ["GET", "PUT", "DELETE", "POST"],
-    credentials: true}
-))
+    credentials: true,
+    methods : ["GET", "PUT", "DELETE", "POST"],
+}))
+app.use(cookieParser())
 
 
 // API endpoints

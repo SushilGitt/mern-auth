@@ -1,9 +1,12 @@
 import asyncHandler from "express-async-handler"
+import "dotenv/config"
 import crypto from "crypto"
 import User from "../models/userModel.js"
 import generateToken from "../utils/generateToken.js"
-import transporter from "../config/nodemailer.js"
+import sgMail from "@sendgrid/mail"
 import { EMAIL_VERIFY_TEMPLATE, PASSWORD_RESET_TEMPLATE } from "../config/emailTemplates.js"
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 // Register user
 const register = asyncHandler(async (req, res) => {
@@ -27,27 +30,27 @@ const register = asyncHandler(async (req, res) => {
     // create new user with provided values
     const user = await User.create({ name, email, password })
 
-    // send jwt token with cookie
     if (user) {
+
+        // Send cookie 
         const token = generateToken(user._id)
 
         res.cookie("jwt", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ?
-                "none" : "strict",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
 
         // send welcome email to user
-        const mailOptions = {
-            from: process.env.SMTP_SENDER,
+        const msg = {
+            from: process.env.SENDGRID_SENDER,
             to: email,
-            subject: "Welcome to our app!",
+            subject: "Welcome to Mern-Auth",
             text: `Welcome to our website. Your account has been created with email: ${email}`
         }
 
-        await transporter.sendMail(mailOptions)
+        await sgMail.send(msg)
 
         res.status(201).json({
             _id: user._id,
@@ -80,8 +83,7 @@ const login = asyncHandler(async (req, res) => {
         res.cookie("jwt", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ?
-                "none" : "strict",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
         // sending logged in user info
@@ -104,8 +106,7 @@ const logout = asyncHandler(async (req, res) => {
     res.clearCookie("jwt", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ?
-            "none" : "strict"
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict"
     })
 
     res.status(200).json({ message: "User logged out successfully!" })
@@ -131,18 +132,18 @@ const sendVerifyOtp = asyncHandler(async (req, res) => {
 
     await user.save()
 
-    const mailOptions = {
-        from: process.env.SMTP_SENDER,
+    const msg = {
+        from: process.env.SENDGRID_SENDER,
         to: user.email,
-        subject: "Account verification OTP!",
+        subject: "Account Verification",
         html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
     }
 
-    await transporter.sendMail(mailOptions)
+    await sgMail.send(msg)
 
     res.status(200).json({
         message: "Verification OTP sent on email!"
-    }) 
+    })
 })
 
 // Verify user email
@@ -151,27 +152,26 @@ const verifyEmail = asyncHandler(async (req, res) => {
     const userId = req.user
     const { otp } = req.body;
 
-    if(!userId || !otp) {
+    if (!userId || !otp) {
         res.status(400)
         throw new Error("Missing details!")
     }
 
     const user = await User.findById(userId)
 
-    if(!user) {
+    if (!user) {
         res.status(400)
         throw new Error("User not found!")
     }
 
-    if(user.verifyOtp === "" || user.verifyOtp !== otp) {
+    if (user.verifyOtp === "" || user.verifyOtp !== otp) {
         res.status(400)
         throw new Error("Invalid OTP!")
     }
 
-    if(user.verifyOtpExpireAt < Date.now()) {
-        res.json({
-            message: "OTP expired!"
-        })
+    if (user.verifyOtpExpireAt < Date.now()) {
+        res.status(400)
+        throw new Error("OTP expired!")
     }
 
     user.isAccountVerified = true
@@ -190,14 +190,14 @@ const sendPassResetOtp = asyncHandler(async (req, res) => {
 
     const { email } = req.body
 
-    if(!email) {
+    if (!email) {
         res.status(400)
         throw new Error("Email is required!")
     }
 
     const user = await User.findOne({ email })
 
-    if(!user) {
+    if (!user) {
         res.status(404)
         throw new Error("User not found!")
     }
@@ -209,15 +209,15 @@ const sendPassResetOtp = asyncHandler(async (req, res) => {
 
     await user.save()
 
-    const mailOptions = {
-        from: process.env.SMTP_SENDER,
-        to: user.email,
+    const msg = {
+        from: process.env.SENDGRID_SENDER,
+        to: email,
         subject: "Password reset OTP!",
-        html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
+        html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
     }
 
-    await transporter.sendMail(mailOptions)   
-    
+    await sgMail.send(msg)
+
     res.status(200).json({
         message: "OTP sent to your email!"
     })
@@ -228,24 +228,24 @@ const passReset = asyncHandler(async (req, res) => {
 
     const { email, otp, newPassword } = req.body
 
-    if(!email || !otp || !newPassword) {
+    if (!email || !otp || !newPassword) {
         res.status(400)
         throw new Error("All feilds are required!")
     }
 
     const user = await User.findOne({ email })
 
-    if(!user) {
+    if (!user) {
         res.status(404)
         throw new Error("User not found!")
     }
 
-    if(user.resetOtp === "" || user.resetOtp !== otp) {
+    if (user.resetOtp === "" || user.resetOtp !== otp) {
         res.status(400)
         throw new Error("Invalid OTP!")
     }
 
-    if(user.resetOtpExpireAt < Date.now()) {
+    if (user.resetOtpExpireAt < Date.now()) {
         res.status(400)
         throw new Error("OTP expired!")
     }
@@ -259,17 +259,17 @@ const passReset = asyncHandler(async (req, res) => {
     res.status(200).json({
         message: "Password reset success!"
     })
-    
+
 })
 
 // Get user details
 const getUser = asyncHandler(async (req, res) => {
 
-    const  userId  = req.user
+    const userId = req.user
 
     const user = await User.findById(userId)
 
-    if(!user) {
+    if (!user) {
         res.status(404)
         throw new Error("User not found")
     }

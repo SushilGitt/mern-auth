@@ -11,6 +11,7 @@ const Login = () => {
     const {backendUrl,isLogged, loading, setIsLogged, getUserData} = useContext(AppContext)
 
     const [state, setState] = useState("Sign Up")
+    const [btn, setBtn] = useState(false)
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -21,7 +22,7 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-
+        setBtn(true)
         try {
 
             if(state === "Sign Up") {
@@ -68,13 +69,13 @@ const Login = () => {
                     const err = await res.json()
                     toast.error(err.message)
                 }
-
             }
 
         }
         catch (error) {
             toast.error(error.message)
         }
+        setBtn(false)
     }
 
     if(loading) {
@@ -139,7 +140,7 @@ const Login = () => {
                        Forgot password?
                     </p>
 
-                    <button className="w-full py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-900 text-white font-medium cursor-pointer">{state}</button>
+                    <button disabled={btn}  className="w-full py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-900 text-white font-medium cursor-pointer">{state}</button>
 
                 </form>
 

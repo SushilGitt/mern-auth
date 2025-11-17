@@ -1,6 +1,8 @@
 # Mern-Auth
 This is a full-stack project built on the MERN stack (MongoDB, Express.js, React.js, Node.js). This contains all the basic features that we can expect from an application, such as Register, Login, and Password Reset.
 
+Note: Email service will not work after December 23, 2025.
+
 ## For Demo
 - [Get your temp. email and inbox ](https://temp-mail.org/en/)(Open link in new tab)
 - [Live link](https://mern-auth-b9qw.onrender.com)
